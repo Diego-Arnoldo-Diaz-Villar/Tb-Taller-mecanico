@@ -4,6 +4,12 @@ from tkinter import messagebox, ttk
 
 
 def conectar():
+    #De preferencia mover esto a un archivo json o cualquier otro
+    #No conectarse con root crear usuario y solo tener permisos para el uso de la bd (se refiere a la bd directamente)
+    #TODA LA INTERACCION DE BD TIENE QUE ESTAR EN UN SCRIPT APARTE
+    #Tratar de validar erorres de conexiones a bd
+    #Hacer las transacciones atomicas o tener atomicidad y las conexiones
+    #validar conexion en cada consulta de la bd
     return mysql.connector.connect(
         host="localhost",
         user="root",
@@ -12,6 +18,7 @@ def conectar():
     )
 
 def agregar_usuarios_predeterminados():
+    #SACAR DATOS DEL CODIGO
     usuarios = [
         ("admin", "Perez", "Lopez", "admin@example.com", "admin123", "Administrador"),
         ("mecanico1", "Gomez", "Ramirez", "mecanico1@example.com", "meca123", "Mecanico"),
@@ -26,6 +33,7 @@ def agregar_usuarios_predeterminados():
             cursor.execute("INSERT INTO Usuarios (nombre, ap_paterno, ap_materno, email, contraseña, rol) VALUES (%s, %s, %s, %s, %s, %s)", usuario)
     conexion.commit()
     conexion.close()
+
 
 def verificar_credenciales(nombre, password):
     conexion = conectar()
