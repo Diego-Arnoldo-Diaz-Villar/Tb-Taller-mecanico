@@ -80,23 +80,24 @@ def mostrar_todos_los_datos():
         scroll_y.config(command=tree.yview)
         scroll_x.config(command=tree.xview)
 
-        # Cargar datos
-        cursor.execute(query)
-        columnas = [desc[0] for desc in cursor.description]
-        tree["columns"] = columnas
-        tree["show"] = "headings"
+        def cargar_datos(treeview=tree, query_sql=query):
+            for row in treeview.get_children():
+                treeview.delete(row)
+            cursor.execute(query_sql)
+            columnas = [desc[0] for desc in cursor.description]
+            treeview["columns"] = columnas
+            treeview["show"] = "headings"
+            for col in columnas:
+                texto_columna = col.replace("_", " ").title()
+                treeview.heading(col, text=texto_columna)
+                if col.startswith("id_"):
+                    treeview.column(col, width=0, stretch=False)
+                else:
+                    treeview.column(col, anchor="center")
+            for row in cursor.fetchall():
+                treeview.insert("", "end", values=row)
 
-        for col in columnas:
-            texto_columna = col.replace("_", " ").title()
-            tree.heading(col, text=texto_columna)
-
-            if col.startswith("id_"):
-                tree.column(col, width=0, stretch=False)  # Ocultar columna ID
-            else:
-                tree.column(col, anchor="center")
-
-        for row in cursor.fetchall():
-            tree.insert("", "end", values=row)
+        cargar_datos()
 
         def eliminar_registro(treeview=tree, tabla=nombre_sql, col_id=id_columna):
             selected_item = treeview.selection()
@@ -105,7 +106,6 @@ def mostrar_todos_los_datos():
                 return
             item = treeview.item(selected_item[0])
             record_id = item["values"][0]
-
             confirm = messagebox.askyesno("Confirmar", f"¿Eliminar registro {record_id} de {tabla}?")
             if confirm:
                 try:
@@ -120,29 +120,31 @@ def mostrar_todos_los_datos():
                 finally:
                     con.close()
 
-        ttk.Button(frame, text="Eliminar Seleccionado", command=eliminar_registro).pack(pady=5)
+        # Botones
+        botones_frame = ttk.Frame(frame)
+        botones_frame.pack(pady=5)
 
-        # Botones para registrar según tabla
+        ttk.Button(botones_frame, text="Eliminar Seleccionado", command=eliminar_registro).pack(side="left", padx=5)
+
+        # Botones para registrar según la tabla
         if nombre_tabla == "Usuarios":
-            ttk.Button(frame, text="Registrar Nuevo Usuario", command=registrar_usuario).pack(pady=5)
+            ttk.Button(botones_frame, text="Registrar Nuevo Usuario", command=registrar_usuario).pack(side="left", padx=5)
         elif nombre_tabla == "Clientes":
-            ttk.Button(frame, text="Registrar Nuevo Cliente", command=registrar_cliente).pack(pady=5)
+            ttk.Button(botones_frame, text="Registrar Nuevo Cliente", command=registrar_cliente).pack(side="left", padx=5)
         elif nombre_tabla == "Vehículos":
-            ttk.Button(frame, text="Registrar Nuevo Vehículo", command=registrar_vehiculo).pack(pady=5)
+            ttk.Button(botones_frame, text="Registrar Nuevo Vehículo", command=registrar_vehiculo).pack(side="left", padx=5)
         elif nombre_tabla == "Servicios":
-            ttk.Button(frame, text="Registrar Nuevo Servicio", command=registrar_servicio).pack(pady=5)
+            ttk.Button(botones_frame, text="Registrar Nuevo Servicio", command=registrar_servicio).pack(side="left", padx=5)
         elif nombre_tabla == "Citas":
-            ttk.Button(frame, text="Registrar Nueva Cita", command=registrar_cita).pack(pady=5)
-        elif nombre_tabla == "Órdenes de Trabajo":
-            ttk.Label(frame, text="(Órdenes se gestionan en otro módulo)").pack(pady=5)
+            ttk.Button(botones_frame, text="Registrar Nueva Cita", command=registrar_cita).pack(side="left", padx=5)
         elif nombre_tabla == "Inventario":
-            ttk.Button(frame, text="Registrar Nuevo Producto", command=registrar_inventario).pack(pady=5)
+            ttk.Button(botones_frame, text="Registrar Nuevo Producto", command=registrar_inventario).pack(side="left", padx=5)
         elif nombre_tabla == "Proveedores":
-            ttk.Button(frame, text="Registrar Nuevo Proveedor", command=registrar_proveedor).pack(pady=5)
+            ttk.Button(botones_frame, text="Registrar Nuevo Proveedor", command=registrar_proveedor).pack(side="left", padx=5)
         elif nombre_tabla == "Vehículos Empresa":
-            ttk.Button(frame, text="Registrar Vehículo de Empresa", command=registrar_vehiculo_empresa).pack(pady=5)
+            ttk.Button(botones_frame, text="Registrar Vehículo de Empresa", command=registrar_vehiculo_empresa).pack(side="left", padx=5)
         elif nombre_tabla == "Órdenes Empleados":
-            ttk.Button(frame, text="Asignar Orden a Empleado", command=registrar_orden_empleado).pack(pady=5)
+            ttk.Button(botones_frame, text="Asignar Orden a Empleado", command=registrar_orden_empleado).pack(side="left", padx=5)
 
 
 def registrar_proveedor():
@@ -749,18 +751,21 @@ def mostrar_menu(usuario):
         ttk.Button(frame, text="Ver Agenda del Día", command=ver_agenda_dia).pack(fill="x", pady=5)
         ttk.Button(frame, text="Cerrar", command=menu.destroy).pack(fill="x", pady=5)
 
-
-
-def login():
+def iniciar_sesion():
     nombre = entry_usuario.get()
     password = entry_password.get()
+    if not nombre or not password:
+        messagebox.showwarning("Campos vacíos", "Por favor, ingresa usuario y contraseña.")
+        return
     usuario = verificar_credenciales(nombre, password)
     if usuario:
-        messagebox.showinfo("Inicio de sesión", f"Acceso concedido. Bienvenido, {nombre}!")
+        messagebox.showinfo("Bienvenido", f"Hola {usuario[1]} ({usuario[5]})")
         ventana.destroy()
         mostrar_menu(usuario)
     else:
-        messagebox.showerror("Error", "Credenciales incorrectas")
+        messagebox.showerror("Error", "Usuario o contraseña incorrectos.")
+
+
 
 def crear_ventana_login():
     global entry_usuario, entry_password, ventana
@@ -768,7 +773,7 @@ def crear_ventana_login():
     ventana.title("Login - Taller Mecánico")
     ventana.geometry("350x220")
     ventana.minsize(300, 200)
-    ventana.resizable(True, True)
+    ventana.resizable(False, False)
     ventana.configure(bg="#f2f2f2")
 
     style = ttk.Style()
@@ -788,9 +793,11 @@ def crear_ventana_login():
     entry_password = ttk.Entry(frame, show="*", width=30)
     entry_password.grid(row=1, column=1, pady=5)
 
-    ttk.Button(frame, text="Iniciar sesión", command=login).grid(row=2, column=0, columnspan=2, pady=15)
+    # CAMBIO AQUÍ:
+    ttk.Button(frame, text="Iniciar sesión", command=iniciar_sesion).grid(row=2, column=0, columnspan=2, pady=15)
 
     ventana.mainloop()
+
 
 if __name__ == "__main__":
     agregar_usuarios_predeterminados()
