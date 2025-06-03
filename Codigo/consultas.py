@@ -1,11 +1,9 @@
-# consultas.py
 
 from conexion import conectar
-import mysql.connector
+from datetime import datetime
 
-# --------------------------------------------------
-# Usuarios predeterminados y login
-# --------------------------------------------------
+
+
 def agregar_usuarios_predeterminados():
     """
     Inserta un conjunto de usuarios predeterminados si no existen ya.
@@ -30,10 +28,7 @@ def agregar_usuarios_predeterminados():
     cnx.close()
 
 def verificar_credenciales(nombre, password):
-    """
-    Retorna la tupla (id_usuario, nombre, ap_paterno, ap_materno, email, rol)
-    si existe un usuario con (nombre, contraseña), o None en caso contrario.
-    """
+    """Retorna la tupla """
     cnx = conectar()
     cursor = cnx.cursor()
     cursor.execute(
@@ -46,15 +41,8 @@ def verificar_credenciales(nombre, password):
     cnx.close()
     return usuario
 
-
-# --------------------------------------------------
-# Listados generales para "Mostrar Todos los Datos"
-# --------------------------------------------------
 def obtener_filas(query):
-    """
-    Ejecuta un SELECT dinámico y devuelve (columnas, filas).
-    - `query` debe ser una cadena SQL completa (sin parámetros).
-    """
+    """Ejecuta un SELECT dinámico y devuelve (columnas, filas)."""
     cnx = conectar()
     cursor = cnx.cursor()
     cursor.execute(query)
@@ -65,9 +53,6 @@ def obtener_filas(query):
     return columnas, filas
 
 def eliminar_registro(tabla, columna_id, valor_id):
-    """
-    Elimina un registro de `tabla` donde `columna_id` = valor_id.
-    """
     cnx = conectar()
     cursor = cnx.cursor()
     cursor.execute(f"DELETE FROM {tabla} WHERE {columna_id} = %s", (valor_id,))
@@ -76,13 +61,9 @@ def eliminar_registro(tabla, columna_id, valor_id):
     cnx.close()
 
 
-# --------------------------------------------------
-# CRUD para Proveedores
-# --------------------------------------------------
+
 def registrar_proveedor(nombre, contacto, telefono, direccion):
-    """
-    Inserta un nuevo proveedor en la tabla Proveedores.
-    """
+
     cnx = conectar()
     cursor = cnx.cursor()
     cursor.execute(
@@ -94,37 +75,34 @@ def registrar_proveedor(nombre, contacto, telefono, direccion):
     cnx.close()
 
 
-# --------------------------------------------------
-# Órdenes de trabajo asignadas para mecánico
-# --------------------------------------------------
-def obtener_ordenes_mecanico_por_nombre(nombre_mecanico):
-    """
-    Retorna una lista de tuplas (id_orden, estado, fecha_inicio, fecha_fin)
-    para las órdenes asignadas al mecánico `nombre_mecanico`.
-    """
-    cnx = conectar()
-    cursor = cnx.cursor()
-    cursor.execute(
-        "SELECT ot.id_orden, ot.estado, ot.fecha_inicio, ot.fecha_fin "
-        "FROM Ordenes_Trabajo ot "
-        "JOIN Ordenes_Empleados oe ON ot.id_orden = oe.id_orden "
-        "JOIN Usuarios u ON oe.id_usuario = u.id_usuario "
-        "WHERE u.nombre = %s",
-        (nombre_mecanico,)
-    )
+
+def obtener_ordenes_mecanico_por_nombre(nombre):
+    conexion = conectar()
+    cursor = conexion.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT 
+            ot.id_orden,
+            ot.id_cliente,
+            ot.id_vehiculo,
+            s.nombre AS servicio_nombre,
+            ot.descripcion,
+            ot.estado,
+            ot.fecha_registro,
+            ot.fecha_fin
+        FROM Ordenes_Trabajo ot
+        JOIN Servicios s ON ot.id_servicio = s.id_servicio
+        JOIN Ordenes_Empleados oe ON ot.id_orden = oe.id_orden
+        JOIN Usuarios u ON oe.id_usuario = u.id_usuario
+        WHERE u.nombre = %s
+    """, (nombre,))
     filas = cursor.fetchall()
     cursor.close()
-    cnx.close()
-    return filas
+    conexion.close()
+    return filas  # devuelve lista de dicts
 
 
-# --------------------------------------------------
-# CRUD para Usuarios (Registro)
-# --------------------------------------------------
+
 def registrar_usuario(nombre, ap_paterno, ap_materno, email, contraseña, rol, telefono, fecha_contratacion, salario):
-    """
-    Inserta un nuevo usuario en la tabla Usuarios.
-    """
     cnx = conectar()
     cursor = cnx.cursor()
     cursor.execute(
@@ -137,13 +115,8 @@ def registrar_usuario(nombre, ap_paterno, ap_materno, email, contraseña, rol, t
     cnx.close()
 
 
-# --------------------------------------------------
-# CRUD para Clientes
-# --------------------------------------------------
+
 def registrar_cliente(nombre, ap_paterno, ap_materno, direccion, telefono, email):
-    """
-    Inserta un nuevo cliente en la tabla Clientes.
-    """
     cnx = conectar()
     cursor = cnx.cursor()
     cursor.execute(
@@ -156,32 +129,23 @@ def registrar_cliente(nombre, ap_paterno, ap_materno, direccion, telefono, email
     cnx.close()
 
 
-# --------------------------------------------------
-# CRUD para Vehículos
-# --------------------------------------------------
-def registrar_vehiculo(id_cliente, marca, modelo, año, color, placas):
-    """
-    Inserta un nuevo vehículo en la tabla Vehiculos.
-    """
+
+def registrar_vehiculo(id_cliente, marca, modelo, anio, color, placas):
     cnx = conectar()
     cursor = cnx.cursor()
     cursor.execute(
-        "INSERT INTO Vehiculos (id_cliente, marca, modelo, año, color, placas) "
+        "INSERT INTO Vehiculos "
+        "(id_cliente, marca, modelo, anio, color, placas) "
         "VALUES (%s, %s, %s, %s, %s, %s)",
-        (id_cliente, marca, modelo, año, color, placas)
+        (id_cliente, marca, modelo, anio, color, placas)
     )
     cnx.commit()
     cursor.close()
     cnx.close()
 
 
-# --------------------------------------------------
-# CRUD para Inventario (Productos)
-# --------------------------------------------------
+
 def registrar_producto_inventario(nombre, descripcion, cantidad, precio):
-    """
-    Inserta un nuevo producto en la tabla Inventario.
-    """
     cnx = conectar()
     cursor = cnx.cursor()
     cursor.execute(
@@ -194,13 +158,8 @@ def registrar_producto_inventario(nombre, descripcion, cantidad, precio):
     cnx.close()
 
 
-# --------------------------------------------------
-# CRUD para Citas
-# --------------------------------------------------
+
 def registrar_cita(id_vehiculo, fecha, hora, estado, observaciones):
-    """
-    Inserta una nueva cita en la tabla Citas.
-    """
     cnx = conectar()
     cursor = cnx.cursor()
     cursor.execute(
@@ -213,18 +172,11 @@ def registrar_cita(id_vehiculo, fecha, hora, estado, observaciones):
     cnx.close()
 
 
-# --------------------------------------------------
-# CRUD para Servicios
-# --------------------------------------------------
 def registrar_servicio(nombre, descripcion, costo, duracion):
-    """
-    Inserta un nuevo servicio en la tabla Servicios.
-    """
-    cnx = conectar()
+    cnx    = conectar()
     cursor = cnx.cursor()
     cursor.execute(
-        "INSERT INTO Servicios (nombre, descripcion, costo, duracion) "
-        "VALUES (%s, %s, %s, %s)",
+        "INSERT INTO Servicios (nombre, descripcion, costo, duracion) VALUES (%s, %s, %s, %s)",
         (nombre, descripcion, costo, duracion)
     )
     cnx.commit()
@@ -232,13 +184,7 @@ def registrar_servicio(nombre, descripcion, costo, duracion):
     cnx.close()
 
 
-# --------------------------------------------------
-# CRUD para Vehículos de Empresa
-# --------------------------------------------------
 def registrar_vehiculo_empresa(tipo, marca, modelo, placas, estado):
-    """
-    Inserta un nuevo vehículo de empresa en la tabla Vehiculos_Empresa.
-    """
     cnx = conectar()
     cursor = cnx.cursor()
     cursor.execute(
@@ -249,15 +195,26 @@ def registrar_vehiculo_empresa(tipo, marca, modelo, placas, estado):
     cnx.commit()
     cursor.close()
     cnx.close()
+def registrar_orden_trabajo(id_cliente, id_vehiculo, id_servicio, descripcion, fecha_registro, estado="Pendiente"):
+    """Inserta una orden de trabajo vinculando un cliente, vehículo y un único servicio. Devuelve el id_orden generado."""
+    cnx    = conectar()
+    cursor = cnx.cursor()
+    cursor.execute(
+        """
+        INSERT INTO Ordenes_Trabajo
+          (id_cliente, id_vehiculo, id_servicio, descripcion, estado, fecha_registro)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        """,
+        (id_cliente, id_vehiculo, id_servicio, descripcion, estado, fecha_registro)
+    )
+    cnx.commit()
+    nuevo_id = cursor.lastrowid
+    cursor.close()
+    cnx.close()
+    return nuevo_id
 
 
-# --------------------------------------------------
-# CRUD para Órdenes de Trabajo y Asignación
-# --------------------------------------------------
 def registrar_orden_empleado(id_orden, id_usuario):
-    """
-    Inserta un registro en Ordenes_Empleados (asigna orden a empleado).
-    """
     cnx = conectar()
     cursor = cnx.cursor()
     cursor.execute(
@@ -269,14 +226,9 @@ def registrar_orden_empleado(id_orden, id_usuario):
     cnx.close()
 
 
-# --------------------------------------------------
-# Ver agenda del día (fechas de hoy)
-# --------------------------------------------------
+
 def obtener_agenda_del_dia():
-    """
-    Retorna una lista de tuplas (id_cita, placas, fecha, hora, estado)
-    para todas las citas cuya fecha = CURDATE().
-    """
+    """Retorna una lista de tuplas (id_cita, placas, fecha, hora, estado) para todas las citas cuya fecha = CURDATE()."""
     cnx = conectar()
     cursor = cnx.cursor()
     cursor.execute(
@@ -289,3 +241,146 @@ def obtener_agenda_del_dia():
     cursor.close()
     cnx.close()
     return filas
+
+
+def obtener_clientes():
+    """Devuelve una lista de diccionarios con los clientes existentes, """
+    cnx = conectar()
+    cursor = cnx.cursor(dictionary=True)
+    cursor.execute(
+        "SELECT id_cliente, nombre, ap_paterno, ap_materno "
+        "FROM Clientes"
+    )
+    resultados = cursor.fetchall()
+    cursor.close()
+    cnx.close()
+    return resultados
+
+def obtener_vehiculos_modelo():
+    """Devuelve una lista de diccionarios con los vehículos existentes, cada uno con sus campos:"""
+    cnx = conectar()
+    cursor = cnx.cursor(dictionary=True)
+    cursor.execute(
+        "SELECT id_vehiculo, modelo FROM Vehiculos"
+    )
+    resultados = cursor.fetchall()
+    cursor.close()
+    cnx.close()
+    return resultados
+
+def obtener_servicios():
+    """Devuelve lista de diccionarios con todos los servicios"""
+    cnx    = conectar()
+    cursor = cnx.cursor(dictionary=True)
+    cursor.execute("SELECT id_servicio, nombre, descripcion, costo, duracion FROM Servicios")
+    resultados = cursor.fetchall()
+    cursor.close()
+    cnx.close()
+    return resultados
+
+def obtener_ordenes_con_servicio_y_mecanicos():
+    """Devuelve lista de tuplas  para todas las órdenes. (Usa JOIN y subconsulta con GROUP_CONCAT)."""
+    cnx    = conectar()
+    cursor = cnx.cursor()
+    cursor.execute(
+        """
+        SELECT 
+          o.id_orden,
+          o.id_cliente,
+          o.id_vehiculo,
+          s.nombre AS servicio_nombre,
+          o.descripcion,
+          o.estado,
+          o.fecha_registro,
+          o.fecha_fin,
+          IFNULL(
+            (
+              SELECT GROUP_CONCAT(CONCAT(u.nombre,' ',u.ap_paterno) SEPARATOR ', ')
+              FROM Ordenes_Empleados oe
+              JOIN Usuarios u ON oe.id_usuario = u.id_usuario
+              WHERE oe.id_orden = o.id_orden
+            ),
+            'Sin mecánicos'
+          ) AS empleados_asignados
+        FROM Ordenes_Trabajo o
+        JOIN Servicios s ON o.id_servicio = s.id_servicio
+        """
+    )
+    filas = cursor.fetchall()
+    columnas = [desc[0] for desc in cursor.description]
+    cursor.close()
+    cnx.close()
+    return columnas, filas
+
+def obtener_mecanicos():
+    """Devuelve lista de diccionarios con:de todos los usuarios cuyo rol = 'Mecanico'."""
+    cnx    = conectar()
+    cursor = cnx.cursor(dictionary=True)
+    cursor.execute(
+        "SELECT id_usuario, nombre, ap_paterno, ap_materno FROM Usuarios WHERE rol = 'Mecanico'"
+    )
+    resultados = cursor.fetchall()
+    cursor.close()
+    cnx.close()
+    return resultados
+def asignar_empleado_a_orden(id_orden, id_usuario):
+    cnx    = conectar()
+    cursor = cnx.cursor()
+    cursor.execute(
+        "INSERT INTO Ordenes_Empleados (id_orden, id_usuario) VALUES (%s, %s)",
+        (id_orden, id_usuario)
+    )
+    cnx.commit()
+    cursor.close()
+    cnx.close()
+
+def obtener_empleados_de_orden(id_orden):
+    """Retorna lista de diccionariosde los empleados asignados a una orden específica."""
+    cnx    = conectar()
+    cursor = cnx.cursor(dictionary=True)
+    cursor.execute(
+        """
+        SELECT u.id_usuario, u.nombre, u.ap_paterno, u.ap_materno
+        FROM Usuarios u
+        JOIN Ordenes_Empleados oe ON u.id_usuario = oe.id_usuario
+        WHERE oe.id_orden = %s
+        """,
+        (id_orden,)
+    )
+    resultados = cursor.fetchall()
+    cursor.close()
+    cnx.close()
+    return resultados
+
+def quitar_empleado_de_orden(id_orden, id_usuario):
+    cnx    = conectar()
+    cursor = cnx.cursor()
+    cursor.execute(
+        "DELETE FROM Ordenes_Empleados WHERE id_orden = %s AND id_usuario = %s",
+        (id_orden, id_usuario)
+    )
+    cnx.commit()
+    cursor.close()
+    cnx.close()
+
+def actualizar_estado_orden(id_orden, nuevo_estado):
+    conexion = conectar()
+    cursor = conexion.cursor()
+
+    if nuevo_estado == "Completada":
+        fecha_fin = datetime.today().strftime('%Y-%m-%d')
+        cursor.execute("""
+            UPDATE Ordenes_Trabajo
+            SET estado = %s, fecha_fin = %s
+            WHERE id_orden = %s
+        """, (nuevo_estado, fecha_fin, id_orden))
+    else:
+        cursor.execute("""
+            UPDATE Ordenes_Trabajo
+            SET estado = %s
+            WHERE id_orden = %s
+        """, (nuevo_estado, id_orden))
+
+    conexion.commit()
+    cursor.close()
+    conexion.close()
