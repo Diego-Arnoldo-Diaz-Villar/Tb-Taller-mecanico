@@ -1,40 +1,30 @@
-import mysql.connector
+# TallerMecanico.py
+
 import tkinter as tk
 from tkinter import messagebox, ttk
 
+import mysql
 
+# No se importa mysql.connector directamente: todo se hace via 'consultas' y 'conexion'
+from conexion import conectar
+from consultas import (
+    agregar_usuarios_predeterminados,
+    verificar_credenciales,
+    obtener_filas,
+    eliminar_registro,
+    registrar_proveedor,
+    obtener_ordenes_mecanico_por_nombre,
+    registrar_usuario,
+    registrar_cliente,
+    registrar_vehiculo,
+    registrar_producto_inventario,
+    registrar_cita,
+    registrar_servicio,
+    registrar_vehiculo_empresa,
+    registrar_orden_empleado,
+    obtener_agenda_del_dia
+)
 
-def conectar():
-    return mysql.connector.connect(
-        host="localhost",
-        user="dios",
-        password="pass123",
-        database="TallerMecanico"
-    )
-
-def agregar_usuarios_predeterminados():
-    usuarios = [
-        ("admin", "Perez", "Lopez", "admin@example.com", "admin123", "Administrador"),
-        ("mecanico1", "Gomez", "Ramirez", "mecanico1@example.com", "meca123", "Mecanico"),
-        ("recepcion", "Sanchez", "Diaz", "recepcion@example.com", "recep123", "Recepcionista"),
-        ("Edson", "Talamantes", "Chavez", "edsontchflo@gmail.com", "edson9911", "Administrador")
-    ]
-    conexion = conectar()
-    cursor = conexion.cursor()
-    for usuario in usuarios:
-        cursor.execute("SELECT * FROM Usuarios WHERE nombre = %s", (usuario[0],))
-        if not cursor.fetchone():
-            cursor.execute("INSERT INTO Usuarios (nombre, ap_paterno, ap_materno, email, contraseña, rol) VALUES (%s, %s, %s, %s, %s, %s)", usuario)
-    conexion.commit()
-    conexion.close()
-
-def verificar_credenciales(nombre, password):
-    conexion = conectar()
-    cursor = conexion.cursor()
-    cursor.execute("SELECT id_usuario, nombre, ap_paterno, ap_materno, email, rol FROM Usuarios WHERE nombre = %s AND contraseña = %s", (nombre, password))
-    usuario = cursor.fetchone()
-    conexion.close()
-    return usuario
 
 def mostrar_todos_los_datos():
     ventana = tk.Toplevel()
@@ -46,22 +36,19 @@ def mostrar_todos_los_datos():
     notebook.pack(expand=True, fill="both")
 
     tablas = {
-        "Usuarios": ("SELECT * FROM Usuarios", "Usuarios", "id_usuario"),
-        "Clientes": ("SELECT * FROM Clientes", "Clientes", "id_cliente"),
-        "Vehículos": ("SELECT * FROM Vehiculos", "Vehiculos", "id_vehiculo"),
-        "Servicios": ("SELECT * FROM Servicios", "Servicios", "id_servicio"),
-        "Citas": ("SELECT * FROM Citas", "Citas", "id_cita"),
-        "Órdenes de Trabajo": ("SELECT * FROM Ordenes_Trabajo", "Ordenes_Trabajo", "id_orden"),
-        "Inventario": ("SELECT * FROM Inventario", "Inventario", "id_producto"),
-        "Proveedores": ("SELECT * FROM Proveedores", "Proveedores", "id_proveedor"),
-        "Vehículos Empresa": ("SELECT * FROM Vehiculos_Empresa", "Vehiculos_Empresa", "id_vehiculo_empresa"),
-        "Órdenes Empleados": ("SELECT * FROM Ordenes_Empleados", "Ordenes_Empleados", "id_orden")
+        "Usuarios":           ("SELECT * FROM Usuarios",           "Usuarios",            "id_usuario"),
+        "Clientes":           ("SELECT * FROM Clientes",           "Clientes",            "id_cliente"),
+        "Vehículos":          ("SELECT * FROM Vehiculos",          "Vehiculos",           "id_vehiculo"),
+        "Servicios":          ("SELECT * FROM Servicios",          "Servicios",           "id_servicio"),
+        "Citas":              ("SELECT * FROM Citas",              "Citas",               "id_cita"),
+        "Órdenes de Trabajo": ("SELECT * FROM Ordenes_Trabajo",     "Ordenes_Trabajo",     "id_orden"),
+        "Inventario":         ("SELECT * FROM Inventario",         "Inventario",          "id_producto"),
+        "Proveedores":        ("SELECT * FROM Proveedores",        "Proveedores",         "id_proveedor"),
+        "Vehículos Empresa":  ("SELECT * FROM Vehiculos_Empresa",  "Vehiculos_Empresa",   "id_vehiculo_empresa"),
+        "Órdenes Empleados":  ("SELECT * FROM Ordenes_Empleados",  "Ordenes_Empleados",   "id_orden")
     }
 
-    conexion = conectar()
-    cursor = conexion.cursor()
-
-    for nombre_tabla, (query, nombre_sql, id_columna) in tablas.items():
+    for nombre_tabla, (query_sql, nombre_sql, id_columna) in tablas.items():
         frame = ttk.Frame(notebook)
         notebook.add(frame, text=nombre_tabla)
 
@@ -74,32 +61,31 @@ def mostrar_todos_los_datos():
         scroll_x = ttk.Scrollbar(contenedor, orient="horizontal")
         scroll_x.pack(side="bottom", fill="x")
 
-        tree = ttk.Treeview(contenedor, yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)
+        tree = ttk.Treeview(
+            contenedor,
+            yscrollcommand=scroll_y.set,
+            xscrollcommand=scroll_x.set
+        )
         tree.pack(side="left", fill="both", expand=True)
 
         scroll_y.config(command=tree.yview)
         scroll_x.config(command=tree.xview)
 
-        def cargar_datos(treeview=tree, query_sql=query):
-            for row in treeview.get_children():
-                treeview.delete(row)
-            cursor.execute(query_sql)
-            columnas = [desc[0] for desc in cursor.description]
-            treeview["columns"] = columnas
-            treeview["show"] = "headings"
-            for col in columnas:
-                texto_columna = col.replace("_", " ").title()
-                treeview.heading(col, text=texto_columna)
-                if col.startswith("id_"):
-                    treeview.column(col, width=0, stretch=False)
-                else:
-                    treeview.column(col, anchor="center")
-            for row in cursor.fetchall():
-                treeview.insert("", "end", values=row)
+        # Cargar datos usando la función genérica de consultas
+        columnas, filas = obtener_filas(query_sql)
+        tree["columns"] = columnas
+        tree["show"] = "headings"
+        for col in columnas:
+            texto_col = col.replace("_", " ").title()
+            tree.heading(col, text=texto_col)
+            if col.startswith("id_"):
+                tree.column(col, width=0, stretch=False)
+            else:
+                tree.column(col, anchor="center")
+        for row in filas:
+            tree.insert("", "end", values=row)
 
-        cargar_datos()
-
-        def eliminar_registro(treeview=tree, tabla=nombre_sql, col_id=id_columna):
+        def eliminar_registro_activo(treeview=tree, tabla=nombre_sql, col_id=id_columna):
             selected_item = treeview.selection()
             if not selected_item:
                 messagebox.showwarning("Aviso", "Selecciona un registro para eliminar.")
@@ -109,91 +95,77 @@ def mostrar_todos_los_datos():
             confirm = messagebox.askyesno("Confirmar", f"¿Eliminar registro {record_id} de {tabla}?")
             if confirm:
                 try:
-                    con = conectar()
-                    cur = con.cursor()
-                    cur.execute(f"DELETE FROM {tabla} WHERE {col_id} = %s", (record_id,))
-                    con.commit()
+                    eliminar_registro(tabla, col_id, record_id)
                     treeview.delete(selected_item[0])
                     messagebox.showinfo("Éxito", "Registro eliminado correctamente.")
                 except mysql.connector.Error as e:
                     messagebox.showerror("Error", f"No se pudo eliminar: {e}")
-                finally:
-                    con.close()
 
-        # Botones
+        # Frame de botones
         botones_frame = ttk.Frame(frame)
         botones_frame.pack(pady=5)
 
-        ttk.Button(botones_frame, text="Eliminar Seleccionado", command=eliminar_registro).pack(side="left", padx=5)
+        ttk.Button(
+            botones_frame,
+            text="Eliminar Seleccionado",
+            command=eliminar_registro_activo
+        ).pack(side="left", padx=5)
 
-        # Botones para registrar según la tabla
+        # Botones de registro según la tabla
         if nombre_tabla == "Usuarios":
-            ttk.Button(botones_frame, text="Registrar Nuevo Usuario", command=registrar_usuario).pack(side="left", padx=5)
+            ttk.Button(
+                botones_frame,
+                text="Registrar Nuevo Usuario",
+                command=registrar_usuario
+            ).pack(side="left", padx=5)
         elif nombre_tabla == "Clientes":
-            ttk.Button(botones_frame, text="Registrar Nuevo Cliente", command=registrar_cliente).pack(side="left", padx=5)
+            ttk.Button(
+                botones_frame,
+                text="Registrar Nuevo Cliente",
+                command=registrar_cliente
+            ).pack(side="left", padx=5)
         elif nombre_tabla == "Vehículos":
-            ttk.Button(botones_frame, text="Registrar Nuevo Vehículo", command=registrar_vehiculo).pack(side="left", padx=5)
+            ttk.Button(
+                botones_frame,
+                text="Registrar Nuevo Vehículo",
+                command=registrar_vehiculo
+            ).pack(side="left", padx=5)
         elif nombre_tabla == "Servicios":
-            ttk.Button(botones_frame, text="Registrar Nuevo Servicio", command=registrar_servicio).pack(side="left", padx=5)
+            ttk.Button(
+                botones_frame,
+                text="Registrar Nuevo Servicio",
+                command=registrar_servicio
+            ).pack(side="left", padx=5)
         elif nombre_tabla == "Citas":
-            ttk.Button(botones_frame, text="Registrar Nueva Cita", command=registrar_cita).pack(side="left", padx=5)
+            ttk.Button(
+                botones_frame,
+                text="Registrar Nueva Cita",
+                command=registrar_cita
+            ).pack(side="left", padx=5)
         elif nombre_tabla == "Inventario":
-            ttk.Button(botones_frame, text="Registrar Nuevo Producto", command=registrar_inventario).pack(side="left", padx=5)
+            ttk.Button(
+                botones_frame,
+                text="Registrar Nuevo Producto",
+                command=registrar_producto_inventario
+            ).pack(side="left", padx=5)
         elif nombre_tabla == "Proveedores":
-            ttk.Button(botones_frame, text="Registrar Nuevo Proveedor", command=registrar_proveedor).pack(side="left", padx=5)
+            ttk.Button(
+                botones_frame,
+                text="Registrar Nuevo Proveedor",
+                command=registrar_proveedor
+            ).pack(side="left", padx=5)
         elif nombre_tabla == "Vehículos Empresa":
-            ttk.Button(botones_frame, text="Registrar Vehículo de Empresa", command=registrar_vehiculo_empresa).pack(side="left", padx=5)
+            ttk.Button(
+                botones_frame,
+                text="Registrar Vehículo de Empresa",
+                command=registrar_vehiculo_empresa
+            ).pack(side="left", padx=5)
         elif nombre_tabla == "Órdenes Empleados":
-            ttk.Button(botones_frame, text="Asignar Orden a Empleado", command=registrar_orden_empleado).pack(side="left", padx=5)
-
-
-def registrar_proveedor():
-    ventana = tk.Toplevel()
-    ventana.title("Registrar Proveedor")
-    ventana.geometry("400x400")
-    ventana.configure(bg="#f2f2f2")
-
-    frame = ttk.Frame(ventana, padding=20)
-    frame.pack(expand=True, fill="both")
-
-    campos = [
-        ("Nombre del Proveedor", "nombre"),
-        ("Nombre del Contacto", "contacto"),
-        ("Teléfono", "telefono"),
-        ("Dirección", "direccion")
-    ]
-    entradas = {}
-
-    for i, (label, key) in enumerate(campos):
-        ttk.Label(frame, text=label + ":").grid(row=i, column=0, sticky="w", pady=5)
-        entry = ttk.Entry(frame, width=30)
-        entry.grid(row=i, column=1, pady=5)
-        entradas[key] = entry
-
-    def guardar():
-        datos = {k: e.get().strip() for k, e in entradas.items()}
-        if not datos["nombre"]:
-            messagebox.showerror("Error", "El nombre del proveedor es obligatorio.")
-            return
-
-        conexion = conectar()
-        cursor = conexion.cursor()
-        try:
-            cursor.execute("""
-                INSERT INTO Proveedores (nombre, contacto, telefono, direccion)
-                VALUES (%s, %s, %s, %s)
-            """, (datos["nombre"], datos["contacto"], datos["telefono"], datos["direccion"]))
-            conexion.commit()
-            messagebox.showinfo("Éxito", "Proveedor registrado correctamente.")
-            ventana.destroy()
-        except mysql.connector.Error as e:
-            messagebox.showerror("Error", f"No se pudo registrar: {e}")
-        finally:
-            conexion.close()
-
-    ttk.Button(frame, text="Registrar Proveedor", command=guardar).grid(row=len(campos)+1, column=0, columnspan=2, pady=20)
-
-
+            ttk.Button(
+                botones_frame,
+                text="Asignar Orden a Empleado",
+                command=registrar_orden_empleado
+            ).pack(side="left", padx=5)
 
 
 def ver_ordenes_mecanico(usuario):
@@ -205,29 +177,20 @@ def ver_ordenes_mecanico(usuario):
     frame = ttk.Frame(ventana, padding=10)
     frame.pack(fill="both", expand=True)
 
-    tree = ttk.Treeview(frame, columns=("ID Orden", "Estado", "Fecha Inicio", "Fecha Fin"), show="headings")
+    tree = ttk.Treeview(
+        frame,
+        columns=("ID Orden", "Estado", "Fecha Inicio", "Fecha Fin"),
+        show="headings"
+    )
     for col in tree["columns"]:
         tree.heading(col, text=col)
         tree.column(col, width=150)
     tree.pack(fill="both", expand=True)
 
-    def cargar_ordenes():
-        for row in tree.get_children():
-            tree.delete(row)
-        conexion = conectar()
-        cursor = conexion.cursor()
-        cursor.execute("""
-            SELECT ot.id_orden, ot.estado, ot.fecha_inicio, ot.fecha_fin
-            FROM Ordenes_Trabajo ot
-            JOIN Ordenes_Empleados oe ON ot.id_orden = oe.id_orden
-            JOIN Empleados e ON oe.id_empleado = e.id_empleado
-            WHERE e.nombre = %s
-        """, (usuario[1],))
-        for fila in cursor.fetchall():
-            tree.insert("", "end", values=fila)
-        conexion.close()
+    filas = obtener_ordenes_mecanico_por_nombre(usuario[1])
+    for fila in filas:
+        tree.insert("", "end", values=fila)
 
-    cargar_ordenes()
 
 def registrar_usuario():
     ventana = tk.Toplevel()
@@ -249,7 +212,6 @@ def registrar_usuario():
         ("Fecha de Contratación (YYYY-MM-DD)", "fecha_contratacion"),
         ("Salario", "salario")
     ]
-
     entradas = {}
     for i, (label, key) in enumerate(campos):
         ttk.Label(frame, text=label + ":").grid(row=i, column=0, sticky="w", pady=5)
@@ -268,26 +230,25 @@ def registrar_usuario():
             messagebox.showerror("Error", "El salario debe ser un número.")
             return
 
-        conexion = conectar()
-        cursor = conexion.cursor()
         try:
-            cursor.execute("""
-                INSERT INTO Usuarios (nombre, ap_paterno, ap_materno, email, contraseña, rol, telefono, fecha_contratacion, salario)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (
-                datos["nombre"], datos["ap_paterno"], datos["ap_materno"],
-                datos["email"], datos["contraseña"], datos["rol"],
-                datos["telefono"], datos["fecha_contratacion"], salario
-            ))
-            conexion.commit()
+            registrar_usuario(
+                datos["nombre"],
+                datos["ap_paterno"],
+                datos["ap_materno"],
+                datos["email"],
+                datos["contraseña"],
+                datos["rol"],
+                datos["telefono"],
+                datos["fecha_contratacion"],
+                salario
+            )
             messagebox.showinfo("Éxito", "Usuario registrado correctamente.")
             ventana.destroy()
         except mysql.connector.Error as e:
             messagebox.showerror("Error", f"No se pudo registrar: {e}")
-        finally:
-            conexion.close()
 
     ttk.Button(frame, text="Registrar Usuario", command=guardar).grid(row=len(campos)+1, column=0, columnspan=2, pady=20)
+
 
 def registrar_cliente():
     ventana = tk.Toplevel()
@@ -307,7 +268,6 @@ def registrar_cliente():
         ("Correo Electrónico", "email")
     ]
     entradas = {}
-
     for i, (label, key) in enumerate(campos):
         ttk.Label(frame, text=label + ":").grid(row=i, column=0, sticky="w", pady=5)
         entry = ttk.Entry(frame, width=30)
@@ -319,22 +279,21 @@ def registrar_cliente():
         if not all([datos["nombre"], datos["ap_paterno"], datos["telefono"]]):
             messagebox.showerror("Error", "Nombre, Apellido Paterno y Teléfono son obligatorios.")
             return
-        conexion = conectar()
-        cursor = conexion.cursor()
         try:
-            cursor.execute("INSERT INTO Clientes (nombre, ap_paterno, ap_materno, direccion, telefono, email) VALUES (%s, %s, %s, %s, %s, %s)",
-                           (datos["nombre"], datos["ap_paterno"], datos["ap_materno"], datos["direccion"], datos["telefono"], datos["email"]))
-            conexion.commit()
+            registrar_cliente(
+                datos["nombre"],
+                datos["ap_paterno"],
+                datos["ap_materno"],
+                datos["direccion"],
+                datos["telefono"],
+                datos["email"]
+            )
             messagebox.showinfo("Éxito", "Cliente registrado correctamente.")
             ventana.destroy()
         except mysql.connector.Error as e:
             messagebox.showerror("Error", f"No se pudo registrar: {e}")
-        finally:
-            conexion.close()
 
     ttk.Button(frame, text="Registrar Cliente", command=guardar).grid(row=len(campos)+1, column=0, columnspan=2, pady=20)
-
-
 
 
 def registrar_vehiculo():
@@ -355,7 +314,6 @@ def registrar_vehiculo():
         ("Placas", "placas")
     ]
     entradas = {}
-
     for i, (label, key) in enumerate(campos):
         ttk.Label(frame, text=label + ":").grid(row=i, column=0, sticky="w", pady=5)
         entry = ttk.Entry(frame, width=30)
@@ -373,20 +331,23 @@ def registrar_vehiculo():
             messagebox.showerror("Error", "El año debe ser un número entero.")
             return
 
-        conexion = conectar()
-        cursor = conexion.cursor()
         try:
-            cursor.execute("INSERT INTO Vehiculos (id_cliente, marca, modelo, año, color, placas) VALUES (%s, %s, %s, %s, %s, %s)",
-                           (datos["id_cliente"], datos["marca"], datos["modelo"], año_int, datos["color"], datos["placas"]))
-            conexion.commit()
+            registrar_vehiculo(
+                datos["id_cliente"],
+                datos["marca"],
+                datos["modelo"],
+                año_int,
+                datos["color"],
+                datos["placas"]
+            )
             messagebox.showinfo("Éxito", "Vehículo registrado correctamente.")
             ventana.destroy()
         except mysql.connector.Error as e:
             messagebox.showerror("Error", f"No se pudo registrar: {e}")
-        finally:
-            conexion.close()
 
-    ttk.Button(frame, text="Registrar Vehículo", command=guardar).grid(row=len(campos)+1, column=0, columnspan=2, pady=20)
+    ttk.Button(frame, text="Registrar Vehículo", command=guardar).grid(
+        row=len(campos)+1, column=0, columnspan=2, pady=20
+    )
 
 
 def registrar_inventario():
@@ -405,7 +366,6 @@ def registrar_inventario():
         ("Precio", "precio")
     ]
     entradas = {}
-
     for i, (label, key) in enumerate(campos):
         ttk.Label(frame, text=label + ":").grid(row=i, column=0, sticky="w", pady=5)
         entry = ttk.Entry(frame, width=30)
@@ -426,22 +386,21 @@ def registrar_inventario():
             messagebox.showerror("Error", "Cantidad debe ser un entero ≥ 0 y Precio un número válido.")
             return
 
-        conexion = conectar()
-        cursor = conexion.cursor()
         try:
-            cursor.execute("""
-                INSERT INTO Inventario (nombre, descripcion, cantidad, precio)
-                VALUES (%s, %s, %s, %s)
-            """, (datos["nombre"], datos["descripcion"], cantidad, precio))
-            conexion.commit()
+            registrar_producto_inventario(
+                datos["nombre"],
+                datos["descripcion"],
+                cantidad,
+                precio
+            )
             messagebox.showinfo("Éxito", "Producto registrado en inventario.")
             ventana.destroy()
         except mysql.connector.Error as e:
             messagebox.showerror("Error", f"No se pudo registrar: {e}")
-        finally:
-            conexion.close()
 
-    ttk.Button(frame, text="Registrar Producto", command=guardar).grid(row=len(campos)+1, column=0, columnspan=2, pady=20)
+    ttk.Button(frame, text="Registrar Producto", command=guardar).grid(
+        row=len(campos)+1, column=0, columnspan=2, pady=20
+    )
 
 
 def registrar_cita():
@@ -467,8 +426,12 @@ def registrar_cita():
 
     ttk.Label(frame, text="Estado:").grid(row=3, column=0, sticky="w", pady=5)
     estado_var = tk.StringVar()
-    estado_combo = ttk.Combobox(frame, textvariable=estado_var, state="readonly",
-                                 values=["Pendiente", "Completado", "Cancelado"])
+    estado_combo = ttk.Combobox(
+        frame,
+        textvariable=estado_var,
+        state="readonly",
+        values=["Pendiente", "Completado", "Cancelado"]
+    )
     estado_combo.set("Pendiente")
     estado_combo.grid(row=3, column=1, pady=5)
 
@@ -487,22 +450,22 @@ def registrar_cita():
             messagebox.showerror("Error", "ID Vehículo, Fecha y Hora son obligatorios.")
             return
 
-        conexion = conectar()
-        cursor = conexion.cursor()
         try:
-            cursor.execute("""
-                INSERT INTO Citas (id_vehiculo, fecha, hora, estado, observaciones)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (id_vehiculo, fecha, hora, estado, observaciones))
-            conexion.commit()
+            registrar_cita(
+                id_vehiculo,
+                fecha,
+                hora,
+                estado,
+                observaciones
+            )
             messagebox.showinfo("Éxito", "Cita registrada correctamente.")
             ventana.destroy()
         except mysql.connector.Error as e:
             messagebox.showerror("Error", f"No se pudo registrar: {e}")
-        finally:
-            conexion.close()
 
-    ttk.Button(frame, text="Registrar Cita", command=guardar).grid(row=5, column=0, columnspan=2, pady=20)
+    ttk.Button(frame, text="Registrar Cita", command=guardar).grid(
+        row=5, column=0, columnspan=2, pady=20
+    )
 
 
 def registrar_servicio():
@@ -521,7 +484,6 @@ def registrar_servicio():
         ("Duración (minutos)", "duracion")
     ]
     entradas = {}
-
     for i, (label, key) in enumerate(campos):
         ttk.Label(frame, text=label + ":").grid(row=i, column=0, sticky="w", pady=5)
         entry = ttk.Entry(frame, width=30)
@@ -537,23 +499,25 @@ def registrar_servicio():
             costo_float = float(datos["costo"])
             duracion_int = int(datos["duracion"])
         except ValueError:
-            messagebox.showerror("Error", "Costo debe ser número y duración un entero.")
+            messagebox.showerror("Error", "Costo debe ser número y duracion un entero.")
             return
 
-        conexion = conectar()
-        cursor = conexion.cursor()
         try:
-            cursor.execute("INSERT INTO Servicios (nombre, descripcion, costo, duracion) VALUES (%s, %s, %s, %s)",
-                           (datos["nombre"], datos["descripcion"], costo_float, duracion_int))
-            conexion.commit()
+            registrar_servicio(
+                datos["nombre"],
+                datos["descripcion"],
+                costo_float,
+                duracion_int
+            )
             messagebox.showinfo("Éxito", "Servicio registrado correctamente.")
             ventana.destroy()
         except mysql.connector.Error as e:
             messagebox.showerror("Error", f"No se pudo registrar: {e}")
-        finally:
-            conexion.close()
 
-    ttk.Button(frame, text="Registrar Servicio", command=guardar).grid(row=len(campos)+1, column=0, columnspan=2, pady=20)
+    ttk.Button(frame, text="Registrar Servicio", command=guardar).grid(
+        row=len(campos)+1, column=0, columnspan=2, pady=20
+    )
+
 
 def registrar_vehiculo_empresa():
     ventana = tk.Toplevel()
@@ -572,13 +536,16 @@ def registrar_vehiculo_empresa():
         ("Estado", "estado")
     ]
     entradas = {}
-
     for i, (label, key) in enumerate(campos):
         ttk.Label(frame, text=label + ":").grid(row=i, column=0, sticky="w", pady=5)
         if key == "estado":
             estado_var = tk.StringVar()
-            combo_estado = ttk.Combobox(frame, textvariable=estado_var, state="readonly",
-                                        values=["Disponible", "En mantenimiento"])
+            combo_estado = ttk.Combobox(
+                frame,
+                textvariable=estado_var,
+                state="readonly",
+                values=["Disponible", "En mantenimiento"]
+            )
             combo_estado.grid(row=i, column=1, pady=5)
             combo_estado.set("Disponible")
             entradas[key] = estado_var
@@ -593,36 +560,22 @@ def registrar_vehiculo_empresa():
             messagebox.showerror("Error", "Tipo, Placas y Estado son obligatorios.")
             return
 
-        conexion = conectar()
-        cursor = conexion.cursor()
         try:
-            cursor.execute("""
-                INSERT INTO Vehiculos_Empresa (tipo, marca, modelo, placas, estado)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (datos["tipo"], datos["marca"], datos["modelo"], datos["placas"], datos["estado"]))
-            conexion.commit()
+            registrar_vehiculo_empresa(
+                datos["tipo"],
+                datos["marca"],
+                datos["modelo"],
+                datos["placas"],
+                datos["estado"]
+            )
             messagebox.showinfo("Éxito", "Vehículo de empresa registrado correctamente.")
             ventana.destroy()
         except mysql.connector.Error as e:
             messagebox.showerror("Error", f"No se pudo registrar: {e}")
-        finally:
-            conexion.close()
 
-    ttk.Button(frame, text="Registrar Vehículo", command=guardar).grid(row=len(campos), column=0, columnspan=2, pady=20)
-
-import mysql.connector
-import tkinter as tk
-from tkinter import messagebox, ttk
-
-
-def conectar():
-    return mysql.connector.connect(
-        host="localhost",
-        user="dios",
-        password="pass123",
-        database="TallerMecanico"
+    ttk.Button(frame, text="Registrar Vehículo", command=guardar).grid(
+        row=len(campos), column=0, columnspan=2, pady=20
     )
-
 
 
 def registrar_orden_empleado():
@@ -649,19 +602,38 @@ def registrar_orden_empleado():
             messagebox.showerror("Error", "Todos los campos son obligatorios.")
             return
 
-        conexion = conectar()
-        cursor = conexion.cursor()
         try:
-            cursor.execute("INSERT INTO Ordenes_Empleados (id_orden, id_usuario) VALUES (%s, %s)", (id_orden, id_usuario))
-            conexion.commit()
+            registrar_orden_empleado(id_orden, id_usuario)
             messagebox.showinfo("Éxito", "Orden asignada correctamente.")
             ventana.destroy()
         except mysql.connector.Error as e:
             messagebox.showerror("Error", f"No se pudo asignar: {e}")
-        finally:
-            conexion.close()
 
     ttk.Button(frame, text="Asignar Orden", command=guardar).grid(row=2, column=0, columnspan=2, pady=20)
+
+
+def ver_agenda_dia():
+    ventana = tk.Toplevel()
+    ventana.title("Agenda del Día")
+    ventana.geometry("800x400")
+
+    frame = ttk.Frame(ventana, padding=10)
+    frame.pack(fill="both", expand=True)
+
+    tree = ttk.Treeview(
+        frame,
+        columns=("ID Cita", "Vehículo", "Fecha", "Hora", "Estado"),
+        show="headings"
+    )
+    for col in tree["columns"]:
+        tree.heading(col, text=col)
+        tree.column(col, width=150)
+    tree.pack(fill="both", expand=True)
+
+    filas = obtener_agenda_del_dia()
+    for fila in filas:
+        tree.insert("", "end", values=fila)
+
 
 def mostrar_menu(usuario):
     menu = tk.Tk()
@@ -681,76 +653,19 @@ def mostrar_menu(usuario):
 
     ttk.Label(frame, text=f"Bienvenido, {usuario[1]} ({usuario[5]})").pack(pady=10)
 
-    def ver_ordenes_activas(usuario):
-        ventana = tk.Toplevel()
-        ventana.title("Órdenes Activas")
-        ventana.geometry("800x400")
-
-        frame = ttk.Frame(ventana, padding=10)
-        frame.pack(fill="both", expand=True)
-
-        tree = ttk.Treeview(frame, columns=("ID", "Descripción", "Estado", "Inicio"), show="headings")
-        for col in tree["columns"]:
-            tree.heading(col, text=col)
-            tree.column(col, width=150)
-        tree.pack(fill="both", expand=True)
-
-        conexion = conectar()
-        cursor = conexion.cursor()
-        cursor.execute("""
-            SELECT ot.id_orden, ot.descripcion, ot.estado, ot.fecha_inicio
-            FROM Ordenes_Trabajo ot
-            JOIN Ordenes_Empleados oe ON ot.id_orden = oe.id_orden
-            WHERE oe.id_usuario = %s AND ot.estado != 'Completada'
-        """, (usuario[0],))
-
-        for row in cursor.fetchall():
-            tree.insert("", "end", values=row)
-        conexion.close()
-
-    # Función para que recepcionista vea la agenda del día actual
-
-    def ver_agenda_dia():
-        ventana = tk.Toplevel()
-        ventana.title("Agenda del Día")
-        ventana.geometry("800x400")
-
-        frame = ttk.Frame(ventana, padding=10)
-        frame.pack(fill="both", expand=True)
-
-        tree = ttk.Treeview(frame, columns=("ID Cita", "Vehículo", "Fecha", "Hora", "Estado"), show="headings")
-        for col in tree["columns"]:
-            tree.heading(col, text=col)
-            tree.column(col, width=150)
-        tree.pack(fill="both", expand=True)
-
-        conexion = conectar()
-        cursor = conexion.cursor()
-        cursor.execute("""
-            SELECT c.id_cita, v.placas, c.fecha, c.hora, c.estado
-            FROM Citas c
-            JOIN Vehiculos v ON c.id_vehiculo = v.id_vehiculo
-            WHERE c.fecha = CURDATE()
-        """)
-        for row in cursor.fetchall():
-            tree.insert("", "end", values=row)
-        conexion.close()
-
     if usuario[5] == "Administrador":
         ttk.Button(frame, text="Ver Todos los Datos", command=mostrar_todos_los_datos).pack(fill="x", pady=5)
         ttk.Button(frame, text="Cerrar", command=menu.destroy).pack(fill="x", pady=5)
 
     elif usuario[5] == "Mecanico":
-        ttk.Button(frame, text="Ver Órdenes de Trabajo", command=lambda: ver_ordenes_mecanico(usuario)).pack(fill="x",
-                                                                                                             pady=5)
-        ttk.Button(frame, text="Ver Órdenes Activas", command=lambda: ver_ordenes_activas(usuario)).pack(fill="x",
-                                                                                                         pady=5)
+        ttk.Button(frame, text="Ver Órdenes de Trabajo", command=lambda: ver_ordenes_mecanico(usuario)).pack(fill="x", pady=5)
         ttk.Button(frame, text="Cerrar", command=menu.destroy).pack(fill="x", pady=5)
 
     elif usuario[5] == "Recepcionista":
         ttk.Button(frame, text="Registrar Citas", command=registrar_cita).pack(fill="x", pady=5)
         ttk.Button(frame, text="Ver Agenda del Día", command=ver_agenda_dia).pack(fill="x", pady=5)
         ttk.Button(frame, text="Cerrar", command=menu.destroy).pack(fill="x", pady=5)
+
 
 def iniciar_sesion():
     nombre = entry_usuario.get()
@@ -765,7 +680,6 @@ def iniciar_sesion():
         mostrar_menu(usuario)
     else:
         messagebox.showerror("Error", "Usuario o contraseña incorrectos.")
-
 
 
 def crear_ventana_login():
@@ -794,12 +708,14 @@ def crear_ventana_login():
     entry_password = ttk.Entry(frame, show="*", width=30)
     entry_password.grid(row=1, column=1, pady=5)
 
-    # CAMBIO AQUÍ:
-    ttk.Button(frame, text="Iniciar sesión", command=iniciar_sesion).grid(row=2, column=0, columnspan=2, pady=15)
+    ttk.Button(frame, text="Iniciar sesión", command=iniciar_sesion).grid(
+        row=2, column=0, columnspan=2, pady=15
+    )
 
     ventana.mainloop()
 
 
 if __name__ == "__main__":
+    # Conservamos la llamada original para cargar usuarios predeterminados
     agregar_usuarios_predeterminados()
     crear_ventana_login()
