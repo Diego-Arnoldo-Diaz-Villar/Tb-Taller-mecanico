@@ -5,7 +5,6 @@ from tkinter import ttk, messagebox
 from tkcalendar import DateEntry
 
 from consultas import (
-    agregar_usuarios_predeterminados,
     verificar_credenciales,
     obtener_filas,
     eliminar_registro,
@@ -1243,5 +1242,4 @@ def crear_ventana_login():
 
 
 if __name__ == "__main__":
-    agregar_usuarios_predeterminados()
     crear_ventana_login()

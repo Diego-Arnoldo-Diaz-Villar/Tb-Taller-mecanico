@@ -3,30 +3,6 @@ from conexion import conectar
 from datetime import datetime
 
 
-
-def agregar_usuarios_predeterminados():
-    """
-    Inserta un conjunto de usuarios predeterminados si no existen ya.
-    """
-    usuarios = [
-        ("admin",    "Perez",   "Lopez",  "admin@example.com",    "admin123",    "Administrador"),
-        ("mecanico1","Gomez",   "Ramirez","mecanico1@example.com","meca123",     "Mecanico"),
-        ("recepcion","Sanchez", "Diaz",   "recepcion@example.com", "recep123",    "Recepcionista"),
-        ("Edson",    "Talamantes","Chavez","edsontchflo@gmail.com","edson9911",   "Administrador")
-    ]
-    cnx = conectar()
-    cursor = cnx.cursor()
-    for usuario in usuarios:
-        cursor.execute("SELECT * FROM Usuarios WHERE nombre = %s", (usuario[0],))
-        if not cursor.fetchone():
-            cursor.execute(
-                "INSERT INTO Usuarios (nombre, ap_paterno, ap_materno, email, contraseña, rol) VALUES (%s, %s, %s, %s, %s, %s)",
-                usuario
-            )
-    cnx.commit()
-    cursor.close()
-    cnx.close()
-
 def verificar_credenciales(nombre, password):
     """Retorna la tupla """
     cnx = conectar()
