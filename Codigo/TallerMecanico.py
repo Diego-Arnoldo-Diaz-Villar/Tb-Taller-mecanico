@@ -7,8 +7,8 @@ from tkinter import messagebox, ttk
 def conectar():
     return mysql.connector.connect(
         host="localhost",
-        user="root",
-        password="edson9911",
+        user="dios",
+        password="pass123",
         database="TallerMecanico"
     )
 
@@ -618,10 +618,11 @@ from tkinter import messagebox, ttk
 def conectar():
     return mysql.connector.connect(
         host="localhost",
-        user="root",
-        password="edson9911",
+        user="dios",
+        password="pass123",
         database="TallerMecanico"
     )
+
 
 
 def registrar_orden_empleado():
